@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Puzzle game</title>
+    <style>
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        margin: 0;
+        height: 100dvh;
+        display: grid;
+        place-content: center;
+        user-select: none;
+        background-color: rgb(108, 108, 108);
+      }
+      .game {
+        width: min(95vw, 95dvh);
+        aspect-ratio: 1;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+      }
+      .box {
+        aspect-ratio: 1;
+        box-sizing: border-box;
+        border: 1px solid rgb(255, 255, 255);
+        color: transparent;
+        background-image: url(img1.jpg);
+        background-size: calc(100% * 6);
+        cursor: pointer;
+        font-size: 1px;
+      }
+      .block {
+        aspect-ratio: 1;
+        box-sizing: border-box;
+        cursor: pointer;
+        object-fit: contain;
+        background: linear-gradient(
+          -45deg,
+          rgb(0, 149, 255),
+          rgb(192, 255, 241)
+        );
+      }
+      .block:hover {
+        border: 1px solid rgb(255, 0, 0);
+      }
+      .boxslide {
+        position: absolute;
+        bottom: 0;
+        height: 100px;
+        width: 95vw;
+        margin-left: 2.5vw;
+        background: linear-gradient(
+          -45deg,
+          rgb(0, 149, 255),
+          rgb(192, 255, 241)
+        );
+        display: flex;
+        overflow: hidden;
+        overflow-x: scroll;
+      }
+      @media (aspect-ratio>1) {
+        .boxslide {
+          position: absolute;
+          right: 0;
+          bottom: unset;
+          height: 95dvh;
+          margin-top: 2.5dvh;
+          width: 100px;
+          background-color: red;
+          margin-left: unset;
+          display: unset;
+          overflow: hidden;
+          overflow-x: unset;
+          overflow-y: scroll;
+        }
+      }
+      .boxslide::-webkit-scrollbar {
+        background-color: rgb(108, 108, 108);
+        height: 5px;
+        width: 5px;
+      }
+      .boxslide::-webkit-scrollbar-thumb {
+        background-color: skyblue;
+        border-radius: 20px;
+      }
+      .moving {
+        position: fixed;
+        height: 50px;
+        aspect-ratio: 1;
+        pointer-events: none;
+        opacity: 0.7;
+        z-index: 10;
+        transform: translate(-50%, -50%);
+      }
+      /*  */
+      .controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      button {
+        background: linear-gradient(45deg, skyblue, blue);
+        color: white;
+        width: 70px;
+        border: none;
+        cursor: pointer;
+        padding: 5px 10px;
+        border-radius: 40px;
+      }
+      .show {
+        background-image: url(img1.jpg);
+      }
+      .imagepre {
+        position: fixed;
+        top: 0;
+        left: 0;
+        border-radius: 0px;
+        height: 100dvh;
+        width: 100vw;
+        background-position: center;
+        background-size: contain;
+        background-repeat: no-repeat;
+        color: transparent;
+      }
+      .selectimg {
+        overflow: hidden;
+        cursor: pointer;
+        position: relative;
+      }
+      .selectimg::before {
+        position: absolute;
+        content: "File";
+        inset: 0;
+        display: grid;
+        place-content: center;
+      }
+      .selectimg input {
+        height: 100%;
+        width: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+      /* loading */
+      .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100dvh;
+        width: 100vw;
+        display: grid;
+        place-content: center;
+        background-color: antiquewhite;
+      }
+      .loading span {
+        position: absolute;
+        bottom: 200px;
+        left: 50%;
+        transform: translateX(-20px);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game"></div>
+    <div class="boxslide"></div>
+    <div class="controls">
+      <button class="prev" onclick="changeimage(0)">Prev</button>
+      <button class="next" onclick="changeimage(1)">Next</button>
+      <button class="selectimg">
+        <input type="file" name="" id="selectimg" onchange="selectimg(this)" />
+      </button>
+      <button class="show" onclick="imagepre(this)">Show</button>
+    </div>
+    <div class="loading">
+      This game is optimized for desktop only
+      <br />
+      <span>Loading</span>
+    </div>
+    <script>
+      let readfile;
+      let boxarray = [];
+      function creategame() {
+        boxarray = [];
+        for (let i = 0; i < 36; i++) {
+          let box = document.createElement("div");
+          box.classList.add("box");
+          box.style.backgroundPosition = `calc(100% / 5 * ${
+            i % 6
+          }) calc(100% / 5 * ${Math.floor(i / 6)})`;
+          box.innerHTML = "block" + i;
+          boxarray.push(box);
+          //
+          let block = document.createElement("div");
+          block.classList.add("block");
+          block.classList.add("block" + i);
+          document.querySelector(".game").appendChild(block);
+        }
+        let suffarray = boxarray.sort((a, b) => {
+          return 0.5 - Math.random();
+        });
+        suffarray.forEach((item) => {
+          document.querySelector(".boxslide").appendChild(item);
+        });
+      }
+      creategame();
+      //mouse down
+      let ismoving = false;
+      let imgnum = 1;
+      let selectedbox;
+      let allblocks;
+      let boxes;
+      function refreshboxes(value) {
+        allblocks = document.querySelectorAll(".block");
+        boxes = document.querySelectorAll(".box");
+        boxes.forEach((box) => {
+          box.onmousedown = () => {
+            ismoving = true;
+            box.classList.add("moving");
+            selectedbox = box;
+          };
+          document.querySelector(".show").style.backgroundImage =
+            "url(img" + imgnum + ".jpg)";
+          box.style.backgroundImage = "url(img" + imgnum + ".jpg)";
+          if (value) {
+            document.querySelector(".show").style.backgroundImage =
+              "url(" + value + ")";
+            box.style.backgroundImage = "url(" + value + ")";
+          }
+        });
+        //margin on boxes
+        boxes.forEach((box) => {
+          box.onmousemove = (e) => {
+            if (box.parentElement.classList.contains("boxslide")) {
+              let rect = box.getBoundingClientRect();
+              if (ismoving) {
+                boxes.forEach((item) => {
+                  item.style.margin = "0px";
+                });
+                if (window.innerWidth < window.innerHeight) {
+                  if (e.clientX - rect.left < 50) {
+                    box.style.marginLeft = "100px";
+                  } else {
+                    box.style.marginRight = "100px";
+                  }
+                } else {
+                  if (e.clientY - rect.top < 50) {
+                    box.style.marginTop = "100px";
+                  } else {
+                    box.style.marginBottom = "100px";
+                  }
+                }
+              }
+            }
+          };
+        });
+        // move boxes again
+        allblocks.forEach((box) => {
+          box.onmousedown = (e) => {
+            if (e.target.classList.contains("box")) {
+              e.target.classList.add("moving");
+              selectedbox = e.target;
+              ismoving = true;
+            }
+          };
+        });
+      }
+      refreshboxes();
+
+      // mouse move
+      document.onmousemove = (e) => {
+        if (ismoving) {
+          selectedbox.style.left = e.pageX + "px";
+          selectedbox.style.top = e.pageY + "px";
+        }
+      };
+      // mouse up
+      document.onmouseup = (e) => {
+        if (e.target.classList.contains("block") && ismoving) {
+          selectedbox.style.border = "none";
+          selectedbox.classList.remove("moving");
+          e.target.innerHTML = selectedbox.outerHTML;
+          selectedbox.remove();
+          checkwin();
+        } else {
+          if (ismoving) {
+            selectedbox.classList.remove("moving");
+          }
+          if (e.target.classList.contains("boxslide") && ismoving) {
+            selectedbox.style.border = " 1px solid white";
+            selectedbox.classList.remove("moving");
+            e.target.appendChild(selectedbox);
+            if (readfile) {
+              refreshboxes(readfile);
+            } else {
+              refreshboxes();
+            }
+          }
+        }
+        ismoving = false;
+        boxes.forEach((item) => {
+          item.style.margin = "0px";
+        });
+      };
+
+      // check win
+      let boxslide = document.querySelector(".boxslide");
+      let points = 0;
+      function checkwin() {
+        if (boxslide.children.length == 0)
+          allblocks.forEach((block) => {
+            if (block.children[0]) {
+              if (block.classList[1] == block.children[0].innerHTML) {
+                points++;
+                if (points == 36) {
+                  alert("You win");
+                }
+              } else {
+                points--;
+              }
+            }
+          });
+      }
+      // change image
+      function changeimage(value) {
+        boxes.forEach((item) => {
+          item.remove();
+        });
+        allblocks.forEach((item) => {
+          item.remove();
+        });
+        creategame();
+        points = 0;
+        readfile = null;
+        if (value == 1) {
+          imgnum++;
+          if (imgnum > 5) {
+            imgnum = 1;
+          }
+          refreshboxes();
+        } else {
+          imgnum--;
+          if (imgnum < 1) {
+            imgnum = 5;
+          }
+        }
+        refreshboxes();
+      }
+      // imageprev
+      function imagepre(value) {
+        value.classList.toggle("imagepre");
+      }
+      // select own image
+      function selectimg(value) {
+        boxes.forEach((item) => {
+          item.remove();
+        });
+        allblocks.forEach((item) => {
+          item.remove();
+        });
+        creategame();
+        //
+        let reader = new FileReader();
+        reader.readAsDataURL(value.files[0]);
+        reader.onload = () => {
+          readfile = reader.result;
+          refreshboxes(readfile);
+        };
+      }
+      // loading
+      let dots=0
+      let loadingdots=setInterval(() => {
+        dots++
+        if(dots==4){
+          document.querySelector(".loading span").innerHTML = "Loading";
+          dots=0
+        }else{
+          document.querySelector(".loading span").innerHTML += ".";
+        }
+      }, 500);
+      document.body.onload=()=>{
+        setTimeout(()=>{
+          clearInterval(loadingdots)
+          document.querySelector(".loading").style.display="none"
+        },5000)
+      }
+    </script>
+  </body>
+</html>
