@@ -161,7 +161,8 @@
         position: absolute;
         bottom: 200px;
         left: 50%;
-        transform: translateX(-20px);
+        transform: translateX(-50%);
+        font-size: 25px;
       }
     </style>
   </head>
@@ -177,8 +178,6 @@
       <button class="show" onclick="imagepre(this)">Show</button>
     </div>
     <div class="loading">
-      This game is optimized for desktop only
-      <br />
       <span>Loading</span>
     </div>
     <script>
@@ -219,6 +218,12 @@
         boxes = document.querySelectorAll(".box");
         boxes.forEach((box) => {
           box.onmousedown = () => {
+            ismoving = true;
+            box.classList.add("moving");
+            selectedbox = box;
+          };
+          // touch
+          box.ontouchstart = () => {
             ismoving = true;
             box.classList.add("moving");
             selectedbox = box;
@@ -267,6 +272,13 @@
               ismoving = true;
             }
           };
+          box.ontouchstart = (e) => {
+            if (e.target.classList.contains("box")) {
+              e.target.classList.add("moving");
+              selectedbox = e.target;
+              ismoving = true;
+            }
+          };
         });
       }
       refreshboxes();
@@ -278,22 +290,39 @@
           selectedbox.style.top = e.pageY + "px";
         }
       };
+      document.ontouchmove = (e) => {
+        if (ismoving) {
+          selectedbox.style.left = e.touches[0].pageX + "px";
+          selectedbox.style.top = e.touches[0].pageY + "px";
+        }
+      };
       // mouse up
-      document.onmouseup = (e) => {
-        if (e.target.classList.contains("block") && ismoving) {
+      document.onmouseup = eventend;
+      document.ontouchend = eventend;
+      function eventend(e) {
+        let dropElement;
+        if (e.touches) {
+          dropElement = document.elementFromPoint(
+            e.changedTouches[0].clientX,
+            e.changedTouches[0].clientY
+          );
+        } else {
+          dropElement = e.target;
+        }
+        if (dropElement.classList.contains("block") && ismoving) {
           selectedbox.style.border = "none";
           selectedbox.classList.remove("moving");
-          e.target.innerHTML = selectedbox.outerHTML;
+          dropElement.innerHTML = selectedbox.outerHTML;
           selectedbox.remove();
           checkwin();
         } else {
           if (ismoving) {
             selectedbox.classList.remove("moving");
           }
-          if (e.target.classList.contains("boxslide") && ismoving) {
+          if (dropElement.classList.contains("boxslide") && ismoving) {
             selectedbox.style.border = " 1px solid white";
             selectedbox.classList.remove("moving");
-            e.target.appendChild(selectedbox);
+            dropElement.appendChild(selectedbox);
             if (readfile) {
               refreshboxes(readfile);
             } else {
@@ -305,7 +334,7 @@
         boxes.forEach((item) => {
           item.style.margin = "0px";
         });
-      };
+      }
 
       // check win
       let boxslide = document.querySelector(".boxslide");
@@ -372,22 +401,22 @@
         };
       }
       // loading
-      let dots=0
-      let loadingdots=setInterval(() => {
-        dots++
-        if(dots==4){
+      let dots = 0;
+      let loadingdots = setInterval(() => {
+        dots++;
+        if (dots == 4) {
           document.querySelector(".loading span").innerHTML = "Loading";
-          dots=0
-        }else{
+          dots = 0;
+        } else {
           document.querySelector(".loading span").innerHTML += ".";
         }
       }, 500);
-      document.body.onload=()=>{
-        setTimeout(()=>{
-          clearInterval(loadingdots)
-          document.querySelector(".loading").style.display="none"
-        },5000)
-      }
+      document.body.onload = () => {
+        setTimeout(() => {
+          clearInterval(loadingdots);
+          document.querySelector(".loading").style.display = "none";
+        }, 1000);
+      };
     </script>
   </body>
 </html>
